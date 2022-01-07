@@ -27,20 +27,43 @@ with open('freqs') as f:
 
 def score(guess, hidden):
 	ret = 0
-	used = [False, False, False, False, False]
+	unchecked = []
+	# Calculate all the greens first. If the hidden word is LIMBO and the guess is PHONO,
+	# you don't get a yellow box for the first O.
 	for i in range(5):
-		g = guess[i]
-		ret *= 4
-		if g == hidden[i]:
-			ret += 2
-			used[i] = True
+		if guess[i] == hidden[i]:
+			ret |= 2 << ((4 - i) * 4)
 		else:
-			for j in range(5):
-				if not used[j] and g == hidden[j]:
-					used[j] = True					
-					ret += 1
-					break
+			unchecked.append(i)
+	index = [0] * 26
+	for i in unchecked:
+		index[ord(hidden[i]) - 97] += 1
+	for i in unchecked:
+		g = ord(guess[i]) - 97
+		if index[g] > 0:
+			ret |= 1 << ((4 - i) * 4)
+			index[g] -= 1
 	return ret
+
+def test():
+	def eq(hidden, guess, expected):
+		actual = score(guess, hidden)
+		if actual != expected:
+			print("h={} g={}, actual={:05x}, expected={:05x}".format(hidden, guess, actual, expected))
+
+	eq("limbo", "phono", 0x00002)
+	eq("limbo", "hello", 0x00102)
+	eq("hello", "hello", 0x22222)
+	eq("tares", "stare", 0x11111)
+	eq("limbo", "could", 0x01010)
+	eq("hello", "could", 0x01020)
+	eq("could", "hello", 0x00021)
+	eq("colds", "llama", 0x10000)
+
+def profile():
+	for w in words:
+		for h in words[:1000]:
+			score(w, h)
 
 def readscore():
 	while (True):
@@ -53,11 +76,11 @@ def readscore():
 			print("invalid input character")
 			continue
 		ret = 0
-		for c in s:
-			ret *= 4
-			if (c == 'g'):
+		for i in range(5):
+			ret *= 16
+			if s[i] == 'g':
 				ret += 2
-			elif (c == 'y'):
+			elif s[i] == 'y':
 				ret += 1
 		return ret
 
@@ -65,7 +88,7 @@ def writescore(score, guess):
 	print("\033[37m\033[1m", end='')
 	for i in range(5):
 		c = guess[i].upper()
-		offset = 8 - 2 * i
+		offset = 16 - 4 * i
 		b = (score >> offset) & 3
 		if b == 0:
 			bgcolor = 40
@@ -128,7 +151,7 @@ def play(mode, hard, hidden, guesses):
 		elif mode == Mode.interactive:
 			print("Guess {}:".format(i+1), guess)
 			pattern = readscore()
-		if pattern == 0x2aa:
+		if pattern == 0x22222:
 			break
 		candidates = [ w for w in candidates if score(guess, w) == pattern ]
 
@@ -140,22 +163,24 @@ def worst(candidates, guess):
 
 	return max([(scores[p], p) for p in scores])[1]
 
-def search(candidates, depth=1):
+def search(guesses, candidates, depth=1):
 	if len(candidates) == 1:
-		return
+		return 0
 	if depth == 6:
 		print(candidates)
-		return
-	guess = choose(candidates) if depth > 1 else 'tares' # shortcut
+		return len(candidates) - 1
+	guess = choose(candidates) if depth > len(guesses) else guesses[depth-1]
 	scores = defaultdict(list)
 	for h in candidates:
 		scores[score(guess, h)].append(h)
 	i = 0
+	unreachable = 0
 	for s in scores:
-		search(scores[s], depth+1)
+		unreachable += search(guesses, scores[s], depth+1)
 		if depth == 1:
 			i += 1
 			print("{}/{}".format(i, len(scores)))
+	return unreachable
 
 if sys.argv[1] == "play":
 	play(Mode.play, False, sys.argv[2], sys.argv[3:])
@@ -164,10 +189,14 @@ elif sys.argv[1] == "hard":
 elif sys.argv[1] == "adversary":
 	play(Mode.adversary, False, "", sys.argv[2:])
 elif sys.argv[1] == "search":
-	search(words)
+	print(search(sys.argv[2:], words))
 elif sys.argv[1] == "top":
 	top(words)
+elif sys.argv[1] == "score":
+	print("{0:b}".format(score(sys.argv[3], sys.argv[2])))
+elif sys.argv[1] == "profile":
+	profile()
+elif sys.argv[1] == "test":
+	test()
 else:
 	play(Mode.interactive, False, "", sys.argv[1:])
-
-
