@@ -61,6 +61,19 @@ def readscore():
 				ret += 1
 		return ret
 
+def writescore(score, guess):
+	for i in range(5):
+		c = guess[i]
+		offset = 8 - 2 * i
+		b = (score >> offset) & 3
+		if b == 0:
+			print("-", end='')
+		elif b == 1:
+			print("y", end='')
+		elif b == 2:
+			print("g", end='')
+	print("")
+
 def choose(candidates, hard):
 	print("Searching...")
 	if len(candidates) == 1:
@@ -105,8 +118,10 @@ def play(mode, hard, hidden, guesses):
 		print("Guess {}:".format(i+1), guess)
 		if mode == Mode.play:
 			pattern = score(guess, hidden)
+			writescore(pattern, guess)
 		elif mode == Mode.adversary:
 			pattern = worst(candidates, guess)
+			writescore(pattern, guess)
 		elif mode == Mode.interactive:
 			pattern = readscore()
 		if pattern == 0x2aa:
