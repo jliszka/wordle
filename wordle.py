@@ -6,8 +6,6 @@ import math
 import re
 import sys
 
-easy_mode = True
-
 class Mode(Enum):
 	play = 1
 	adversary = 2
@@ -63,12 +61,27 @@ def readscore():
 				ret += 1
 		return ret
 
-def choose(candidates):
+def writescore(score, guess):
+	print("\033[37m\033[1m", end='')
+	for i in range(5):
+		c = guess[i].upper()
+		offset = 8 - 2 * i
+		b = (score >> offset) & 3
+		if b == 0:
+			bgcolor = 40
+		elif b == 1:
+			bgcolor = 43
+		elif b == 2:
+			bgcolor = 42
+		print("\033[{}m{}".format(bgcolor, c), end='')
+	print("\033[0m")
+
+def choose(candidates, hard):
 	print("Searching...")
 	if len(candidates) == 1:
 		return candidates[0]
 	guesses = []
-	for w in (words if easy_mode else candidates):
+	for w in (candidates if hard else words):
 		scores = defaultdict(int)
 		for h in candidates:
 			scores[score(w, h)] += freqs.get(h, 1)
@@ -96,20 +109,24 @@ def top(candidates):
 	for (e, b, m, w) in sorted(guesses, reverse=True):
 		print("{:.4f}".format(e), b, m, w)
 
-def play(mode, hidden, guesses):
+def play(mode, hard, hidden, guesses):
 	candidates = words
 	for i in range(6):
 		if len(candidates) >= 10:
 			print("Remaining:", len(candidates))
 		else:
 			print("Remaining:", len(candidates), candidates)
-		guess = choose(candidates) if i >= len(guesses) else guesses[i]
-		print("Guess {}:".format(i+1), guess)
+		guess = choose(candidates, hard) if i >= len(guesses) else guesses[i]
 		if mode == Mode.play:
 			pattern = score(guess, hidden)
+			print("Guess {}: ".format(i+1), end='')
+			writescore(pattern, guess)
 		elif mode == Mode.adversary:
 			pattern = worst(candidates, guess)
+			print("Guess {}: ".format(i+1), end='')
+			writescore(pattern, guess)
 		elif mode == Mode.interactive:
+			print("Guess {}:".format(i+1), guess)
 			pattern = readscore()
 		if pattern == 0x2aa:
 			break
@@ -141,17 +158,16 @@ def search(candidates, depth=1):
 			print("{}/{}".format(i, len(scores)))
 
 if sys.argv[1] == "play":
-	play(Mode.play, sys.argv[2], sys.argv[3:])
+	play(Mode.play, False, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "hard":
-	easy_mode = False
-	play(Mode.play, sys.argv[2], sys.argv[3:])
+	play(Mode.play, True, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "adversary":
-	play(Mode.adversary, "", sys.argv[2:])
+	play(Mode.adversary, False, "", sys.argv[2:])
 elif sys.argv[1] == "search":
 	search(words)
 elif sys.argv[1] == "top":
 	top(words)
 else:
-	play(Mode.interactive, "", sys.argv[1:])
+	play(Mode.interactive, False, "", sys.argv[1:])
 
 
