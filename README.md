@@ -41,5 +41,5 @@ wordle.py top
 
 To play interactively
 ```
-wordle.py interactive [guess1 [guess2 ...]]
+wordle.py [guess1 [guess2 ...]]
 ```

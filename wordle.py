@@ -41,15 +41,15 @@ def score(guess, hidden):
 def readscore():
 	while (True):
 		print("Enter score using -gy: ", end='')
-		r = input()
-		if len(r) != 5:
+		s = input()
+		if len(s) != 5:
 			print("input not 5 characters")
 			continue
-		if len(re.findall("[-gy]", r)) != 5:
+		if len(re.findall("[-gy]", s)) != 5:
 			print("invalid input character")
 			continue
 		ret = 0
-		for c in r:
+		for c in s:
 			ret *= 4
 			if (c == 'g'):
 				ret += 2
@@ -58,6 +58,7 @@ def readscore():
 		return ret
 
 def choose(candidates):
+	print("Searching...")
 	if len(candidates) == 1:
 		return candidates[0]
 	guesses = []
@@ -93,11 +94,11 @@ def play(interactive, hidden, guesses):
 	candidates = words
 	for i in range(6):
 		if len(candidates) >= 10:
-			print("Remaining: {}".format(len(candidates)))
+			print("Remaining:", len(candidates))
 		else:
-			print("Remaining: {} {}".format(len(candidates), candidates))
+			print("Remaining:", len(candidates), candidates)
 		guess = choose(candidates) if i >= len(guesses) else guesses[i]
-		print("Guess {}: ".format(i+1), guess)
+		print("Guess {}:".format(i+1), guess)
 		pattern = readscore() if interactive else score(guess, hidden)
 		if pattern == 0x2aa:
 			break
@@ -114,9 +115,9 @@ def worst(candidates, guess):
 def adversary(guesses):
 	candidates = words
 	for i in range(6):
-		print("Remaining: {}".format(len(candidates)))
+		print("Remaining:", len(candidates))
 		guess = choose(candidates) if i >= len(guesses) else guesses[i]
-		print("Guess {}: ".format(i+1), guess)
+		print("Guess {}:".format(i+1), guess)
 		pattern = worst(candidates, guess)
 		if pattern == 0x2aa:
 			break
@@ -150,7 +151,7 @@ elif sys.argv[1] == "search":
 	search(words)
 elif sys.argv[1] == "top":
 	top(words)
-elif sys.argv[1] == "interactive":
-	play(True, "", sys.argv[2:])
+else:
+	play(True, "", sys.argv[1:])
 
 
