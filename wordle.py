@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 
 from collections import defaultdict
+from enum import Enum
 import math
+import re
 import sys
 
 easy_mode = True
+
+class Mode(Enum):
+	play = 1
+	adversary = 2
+	interactive = 3
 
 words = []
 with open('words') as f:
@@ -35,9 +42,29 @@ def score(guess, hidden):
 					used[j] = True					
 					ret += 1
 					break
-	return ret	
+	return ret
+
+def readscore():
+	while (True):
+		print("Enter score using -gy: ", end='')
+		s = input()
+		if len(s) != 5:
+			print("input not 5 characters")
+			continue
+		if len(re.findall("[-gy]", s)) != 5:
+			print("invalid input character")
+			continue
+		ret = 0
+		for c in s:
+			ret *= 4
+			if (c == 'g'):
+				ret += 2
+			elif (c == 'y'):
+				ret += 1
+		return ret
 
 def choose(candidates):
+	print("Searching...")
 	if len(candidates) == 1:
 		return candidates[0]
 	guesses = []
@@ -69,13 +96,21 @@ def top(candidates):
 	for (e, b, m, w) in sorted(guesses, reverse=True):
 		print("{:.4f}".format(e), b, m, w)
 
-def play(hidden, guesses):
+def play(mode, hidden, guesses):
 	candidates = words
 	for i in range(6):
-		print("Remaining: {}".format(len(candidates)))
+		if len(candidates) >= 10:
+			print("Remaining:", len(candidates))
+		else:
+			print("Remaining:", len(candidates), candidates)
 		guess = choose(candidates) if i >= len(guesses) else guesses[i]
-		print("Guess {}: ".format(i+1), guess)
-		pattern = score(guess, hidden)
+		print("Guess {}:".format(i+1), guess)
+		if mode == Mode.play:
+			pattern = score(guess, hidden)
+		elif mode == Mode.adversary:
+			pattern = worst(candidates, guess)
+		elif mode == Mode.interactive:
+			pattern = readscore()
 		if pattern == 0x2aa:
 			break
 		candidates = [ w for w in candidates if score(guess, w) == pattern ]
@@ -87,17 +122,6 @@ def worst(candidates, guess):
 		scores[score(guess, h)] += -math.log(freqs.get(h, 1)/total)
 
 	return max([(scores[p], p) for p in scores])[1]
-
-def adversary(guesses):
-	candidates = words
-	for i in range(6):
-		print("Remaining: {}".format(len(candidates)))
-		guess = choose(candidates) if i >= len(guesses) else guesses[i]
-		print("Guess {}: ".format(i+1), guess)
-		pattern = worst(candidates, guess)
-		if pattern == 0x2aa:
-			break
-		candidates = [ w for w in candidates if score(guess, w) == pattern ]
 
 def search(candidates, depth=1):
 	if len(candidates) == 1:
@@ -116,17 +140,18 @@ def search(candidates, depth=1):
 			i += 1
 			print("{}/{}".format(i, len(scores)))
 
-
 if sys.argv[1] == "play":
-	play(sys.argv[2], sys.argv[3:])
+	play(Mode.play, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "hard":
 	easy_mode = False
-	play(sys.argv[2], sys.argv[3:])
+	play(Mode.play, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "adversary":
-	adversary(sys.argv[2:])
+	play(Mode.adversary, "", sys.argv[2:])
 elif sys.argv[1] == "search":
 	search(words)
 elif sys.argv[1] == "top":
 	top(words)
+else:
+	play(Mode.interactive, "", sys.argv[1:])
 
 
