@@ -144,7 +144,7 @@ if sys.argv[1] == "play":
 	play(Mode.play, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "hard":
 	easy_mode = False
-	play(False, sys.argv[2], sys.argv[3:])
+	play(Mode.play, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "adversary":
 	play(Mode.adversary, "", sys.argv[2:])
 elif sys.argv[1] == "search":
