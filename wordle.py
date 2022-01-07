@@ -62,7 +62,7 @@ def readscore():
 		return ret
 
 def writescore(score, guess):
-	print("\033[37m", end='')
+	print("\033[37m\033[1m", end='')
 	for i in range(5):
 		c = guess[i].upper()
 		offset = 8 - 2 * i
