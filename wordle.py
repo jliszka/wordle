@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 import math
+import re
 import sys
 
 easy_mode = True
@@ -35,7 +36,26 @@ def score(guess, hidden):
 					used[j] = True					
 					ret += 1
 					break
-	return ret	
+	return ret
+
+def readscore():
+	while (True):
+		print("Enter score using -gy: ", end='')
+		r = input()
+		if len(r) != 5:
+			print("input not 5 characters")
+			continue
+		if len(re.findall("[-gy]", r)) != 5:
+			print("invalid input character")
+			continue
+		ret = 0
+		for c in r:
+			ret *= 4
+			if (c == 'g'):
+				ret += 2
+			elif (c == 'y'):
+				ret += 1
+		return ret
 
 def choose(candidates):
 	if len(candidates) == 1:
@@ -69,13 +89,16 @@ def top(candidates):
 	for (e, b, m, w) in sorted(guesses, reverse=True):
 		print("{:.4f}".format(e), b, m, w)
 
-def play(hidden, guesses):
+def play(interactive, hidden, guesses):
 	candidates = words
 	for i in range(6):
-		print("Remaining: {}".format(len(candidates)))
+		if len(candidates) >= 10:
+			print("Remaining: {}".format(len(candidates)))
+		else:
+			print("Remaining: {} {}".format(len(candidates), candidates))
 		guess = choose(candidates) if i >= len(guesses) else guesses[i]
 		print("Guess {}: ".format(i+1), guess)
-		pattern = score(guess, hidden)
+		pattern = readscore() if interactive else score(guess, hidden)
 		if pattern == 0x2aa:
 			break
 		candidates = [ w for w in candidates if score(guess, w) == pattern ]
@@ -116,17 +139,18 @@ def search(candidates, depth=1):
 			i += 1
 			print("{}/{}".format(i, len(scores)))
 
-
 if sys.argv[1] == "play":
-	play(sys.argv[2], sys.argv[3:])
+	play(False, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "hard":
 	easy_mode = False
-	play(sys.argv[2], sys.argv[3:])
+	play(False, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "adversary":
 	adversary(sys.argv[2:])
 elif sys.argv[1] == "search":
 	search(words)
 elif sys.argv[1] == "top":
 	top(words)
+elif sys.argv[1] == "interactive":
+	play(True, "", sys.argv[2:])
 
 

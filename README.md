@@ -39,3 +39,7 @@ To display all words sorted by information entropy as an initial guess:
 wordle.py top
 ```
 
+To play interactively
+```
+wordle.py interactive [guess1 [guess2 ...]]
+```
