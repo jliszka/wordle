@@ -99,11 +99,10 @@ def writescore(score, guess):
 		print("\033[{}m{}".format(bgcolor, c), end='')
 	print("\033[0m")
 
-def choose(candidates, hard):
-	print("Searching...")
+def choose(candidates, hard=False):
 	if len(candidates) == 1:
 		return candidates[0]
-	guesses = []
+	best_guess = (0, False, 0, "")
 	for w in (candidates if hard else words):
 		scores = defaultdict(int)
 		for h in candidates:
@@ -114,8 +113,10 @@ def choose(candidates, hard):
 		# Sort by entropy.
 		# All else equal choose a candidate word instead of one from the corpus.
 		# All else equal choose a more common word.
-		guesses.append((entropy, w in candidates, freqs.get(w, 1), w))
-	return max(guesses)[3]
+		guess = (entropy, w in candidates, freqs.get(w, 1), w)
+		if guess > best_guess:
+			best_guess = guess
+	return best_guess[3]
 
 def top(candidates):
 	guesses = []
@@ -182,6 +183,23 @@ def search(guesses, candidates, depth=1):
 			print("{}/{}".format(i, len(scores)))
 	return unreachable
 
+
+def expected(guesses, candidates, depth=1):
+	if len(candidates) == 1:
+		return depth * freqs.get(candidates[0], 1) / total
+	guess = choose(candidates) if depth > len(guesses) else guesses[depth-1]
+	scores = defaultdict(list)
+	for h in candidates:
+		scores[score(guess, h)].append(h)
+	i = 0
+	e = 0
+	for s in scores:
+		e += expected(guesses, scores[s], depth+1)
+		if depth == 1:
+			i += 1
+			print("{}/{}".format(i, len(scores)))
+	return e
+
 if sys.argv[1] == "play":
 	play(Mode.play, False, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "hard":
@@ -198,5 +216,7 @@ elif sys.argv[1] == "profile":
 	profile()
 elif sys.argv[1] == "test":
 	test()
+elif sys.argv[1] == "exp":
+	print(expected(sys.argv[2:], words))
 else:
 	play(Mode.interactive, False, "", sys.argv[1:])
