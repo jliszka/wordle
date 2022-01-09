@@ -10,8 +10,13 @@ import (
     "math"
 )
 
-var words []string
-var freqs map[string]int
+type Word struct {
+    word string
+    freq float64
+    n int
+}
+
+var words []Word
 var total float64
 var count float64
 
@@ -46,7 +51,7 @@ type Guess struct {
     word string
     entropy float64
     candidate bool
-    freq int
+    freq float64
 }
 
 func (g Guess) betterThan(g2 Guess) bool {
@@ -65,9 +70,9 @@ func (g Guess) betterThan(g2 Guess) bool {
     return g.freq > g2.freq
 }
 
-func choose(candidates []string, hard bool) string {
+func choose(candidates []Word, hard bool) string {
     if len(candidates) == 1 {
-        return candidates[0]
+        return candidates[0].word
     }
     choices := words
     if hard {
@@ -76,28 +81,22 @@ func choose(candidates []string, hard bool) string {
 
     guesses := make(chan Guess)
     for i, w := range choices {
-        go func(i int, w string) {
-            scores := map[int]int{}
+        go func(i int, w Word) {
+            scores := map[int]float64{}
             is_candidate := false
             for _, h := range candidates {
-                f := freqs[h]
-                if f == 0 {
-                    f = 1
-                }
-                s := score(w, h)
-                scores[s] += f
-                if !hard {
-                    if w == h {
-                        is_candidate = true
-                    }
+                s := score(w.word, h.word)
+                scores[s] += h.freq
+                if !hard && w.n == h.n {
+                    is_candidate = true
                 }
             }
             entropy := 0.0
             for _, fq := range scores {
-                pr := float64(fq) / total
+                pr := fq / total
                 entropy -= pr * math.Log2(pr)
             }
-            guesses <- Guess{w, entropy, is_candidate, freqs[w]}
+            guesses <- Guess{w.word, entropy, is_candidate, w.freq}
         }(i, w)
     }
 
@@ -109,21 +108,6 @@ func choose(candidates []string, hard bool) string {
         }
     }
     return best_guess.word
-}
-
-func readLines(path string) ([]string, error) {
-    file, err := os.Open(path)
-    if err != nil {
-        return nil, err
-    }
-    defer file.Close()
-
-    var lines []string
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        lines = append(lines, scanner.Text())
-    }
-    return lines, scanner.Err()
 }
 
 func writescore(score int, guess string) {
@@ -157,9 +141,9 @@ func play(hard bool, hidden string) {
         if pattern == 0x22222 {
             break
         }
-        var next_candidates []string
+        var next_candidates []Word
         for _, c := range candidates {
-            if score(guess, c) == pattern {
+            if score(guess, c.word) == pattern {
                 next_candidates = append(next_candidates, c)
             }
         }
@@ -167,16 +151,15 @@ func play(hard bool, hidden string) {
     }
 }
 
-func expected(candidates []string, depth int) float64 {
+func expected(candidates []Word, depth int) float64 {
     if len(candidates) == 1 {
-        f := freqs[candidates[0]]
-        return float64(depth * f) / total
+        return float64(depth) * candidates[0].freq / total
     }
 
     guess := choose(candidates, false)
-    scores := map[int][]string{}
+    scores := map[int][]Word{}
     for _, h := range candidates {
-        s := score(guess, h)
+        s := score(guess, h.word)
         scores[s] = append(scores[s], h)
     }
     i := 0
@@ -191,22 +174,22 @@ func expected(candidates []string, depth int) float64 {
     return e
 }
 
-func failure(candidates []string, depth int) float64 {
+func failure(candidates []Word, depth int) float64 {
     if len(candidates) == 1 {
         return 0.0
     }
     if depth == 6 {
         ret := 0.0
         for _, c := range candidates {
-            ret += float64(freqs[c]) / total
+            ret += c.freq / total
         }
         return ret
     }
 
     guess := choose(candidates, false)
-    scores := map[int][]string{}
+    scores := map[int][]Word{}
     for _, h := range candidates {
-        s := score(guess, h)
+        s := score(guess, h.word)
         scores[s] = append(scores[s], h)
     }
     i := 0
@@ -240,30 +223,28 @@ func test() {
 }
 
 func main() {
-    wordLines, err := readLines("words")
+    file, err := os.Open("words")
     if err != nil {
         log.Fatalf("readLines: %s", err)
     }
-    words = wordLines
-    count = float64(len(words))
+    defer file.Close()
 
-    freqLines, err := readLines("freqs")
-    if err != nil {
-        log.Fatalf("readLines: %s", err)
-    }
-
-    freqs = make(map[string]int)
-
-    for _, freqLine := range freqLines {
-        parts := strings.Fields(freqLine)
-        freq, err := strconv.Atoi(parts[0])
+    words = make([]Word, 12972)
+    i := 0
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        line := scanner.Text()
+        parts := strings.Fields(line)
+        freq, err := strconv.Atoi(parts[1])
         if err == nil {
-            freqs[parts[1]] += freq
+            words[i] = Word{parts[0], float64(freq), i}
             total += float64(freq)
+            i++
         }
     }
-    test()
+    count = float64(i)
 
+    test()
 
     switch os.Args[1] {
     case "play":

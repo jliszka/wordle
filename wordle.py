@@ -11,19 +11,15 @@ class Mode(Enum):
 	adversary = 2
 	interactive = 3
 
+total = 0
 words = []
 with open('words') as f:
-	words = f.readlines()
-	words = [ w.rstrip() for w in words ]
-
-total = 0
-freqs = defaultdict(int)
-with open('freqs') as f:
 	lines = f.readlines()
 	for line in lines:
 		parts = line.rstrip().split(' ')
-		freqs[parts[1]] += int(parts[0])
-		total += int(parts[0])
+		freq = int(parts[1])
+		total += freq
+		words.append((parts[0], freq))
 
 def score(guess, hidden):
 	ret = 0
@@ -101,28 +97,28 @@ def writescore(score, guess):
 
 def choose(candidates, hard=False):
 	if len(candidates) == 1:
-		return candidates[0]
+		return candidates[0][0]
 	best_guess = (0, False, 0, "")
-	for w in (candidates if hard else words):
+	for w, f in (candidates if hard else words):
 		scores = defaultdict(int)
-		for h in candidates:
-			scores[score(w, h)] += freqs.get(h, 1)
+		for h, freq in candidates:
+			scores[score(w, h)] += freq
 
 		ps = [ scores[h] / total for h in scores ]
 		entropy = -sum([ p * math.log(p) / math.log(2) for p in ps ])
 		# Sort by entropy.
 		# All else equal choose a candidate word instead of one from the corpus.
 		# All else equal choose a more common word.
-		guess = (entropy, w in candidates, freqs.get(w, 1), w)
+		guess = (entropy, (w, f) in candidates, f, w)
 		if guess > best_guess:
 			best_guess = guess
 	return best_guess[3]
 
 def top(candidates):
 	guesses = []
-	for w in words:
+	for w, _ in words:
 		scores = defaultdict(int)
-		for h in candidates:
+		for h, _ in candidates:
 			scores[score(w, h)] += 1
 
 		ps = [ scores[h]/len(words) for h in scores ]
@@ -154,13 +150,13 @@ def play(mode, hard, hidden, guesses):
 			pattern = readscore()
 		if pattern == 0x22222:
 			break
-		candidates = [ w for w in candidates if score(guess, w) == pattern ]
+		candidates = [ (w, f) for w, f in candidates if score(guess, w) == pattern ]
 
 
 def worst(candidates, guess):
 	scores = defaultdict(int)
-	for h in candidates:
-		scores[score(guess, h)] += -math.log(freqs.get(h, 1)/total)
+	for h, f in candidates:
+		scores[score(guess, h)] += -math.log(f/total)
 
 	return max([(scores[p], p) for p in scores])[1]
 
@@ -172,8 +168,8 @@ def search(guesses, candidates, depth=1):
 		return len(candidates) - 1
 	guess = choose(candidates) if depth > len(guesses) else guesses[depth-1]
 	scores = defaultdict(list)
-	for h in candidates:
-		scores[score(guess, h)].append(h)
+	for h, f in candidates:
+		scores[score(guess, h)].append((h, f))
 	i = 0
 	unreachable = 0
 	for s in scores:
@@ -186,11 +182,11 @@ def search(guesses, candidates, depth=1):
 
 def expected(guesses, candidates, depth=1):
 	if len(candidates) == 1:
-		return depth * freqs.get(candidates[0], 1) / total
+		return depth * candidates[0][1] / total
 	guess = choose(candidates) if depth > len(guesses) else guesses[depth-1]
 	scores = defaultdict(list)
-	for h in candidates:
-		scores[score(guess, h)].append(h)
+	for h, f in candidates:
+		scores[score(guess, h)].append((h, f))
 	i = 0
 	e = 0
 	for s in scores:
