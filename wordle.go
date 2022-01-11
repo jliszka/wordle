@@ -12,6 +12,12 @@ import (
     "runtime/pprof"
 )
 
+type Mode int
+const (
+    Solve Mode = iota
+    Play
+)
+
 type Word struct {
     word string
     freq float64
@@ -205,14 +211,45 @@ func writescore(score int, guess string) {
     fmt.Printf("\033[0m\n")
 }
 
-func play(hard bool, hidden string) {
+func readscore() int {
+    for {
+        var score string
+        fmt.Print("Enter score using -gy: ")
+        fmt.Scanf("%s", &score)
+        if len(score) != 5 {
+            fmt.Println("Must be 5 characters")
+            continue
+        }
+        ret := 0
+        for _, c := range score {
+            ret *= 16
+            if c == 'g' {
+                ret += 2
+            } else if c == 'y' {
+                ret += 1
+            }
+        }
+        return ret
+    }
+}
+
+func play(hard bool, mode Mode, hidden string) {
     candidates := words
     for i := 0; i < 6; i++ {
         fmt.Printf("Remaining: %d\n", len(candidates))
         guess := choose(candidates, hard)
-        pattern := score(guess, hidden)
-        fmt.Printf("Guess %d: ", i+1)
-        writescore(pattern, guess)
+
+        var pattern int
+        switch mode {
+        case Play:
+            fmt.Printf("Guess %d: %s\n", i+1, strings.ToUpper(guess))
+            pattern = readscore()
+        case Solve:
+            pattern = score(guess, hidden)
+            fmt.Printf("Guess %d: ", i+1)
+            writescore(pattern, guess)
+        }
+
         if pattern == 0x22222 {
             break
         }
@@ -349,8 +386,10 @@ func main() {
     }
 
     switch flag.Arg(0) {
+    case "solve":
+        play(*hardMode, Solve, flag.Arg(1))
     case "play":
-        play(*hardMode, flag.Arg(1))
+        play(*hardMode, Play, "xxxxx")
     case "exp":
         fmt.Printf("\n%f\n", expected(*hardMode, words, 1))
     case "fail":
