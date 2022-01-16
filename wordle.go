@@ -24,6 +24,10 @@ type Word struct {
     n int
 }
 
+func (w Word) String() string {
+        return w.word
+}
+
 var words []Word
 var total float64
 var count float64
@@ -236,7 +240,12 @@ func readscore() int {
 func play(hard bool, mode Mode, hidden string) {
     candidates := words
     for i := 0; i < 6; i++ {
-        fmt.Printf("Remaining: %d\n", len(candidates))
+        if len(candidates) < 10 {
+            fmt.Printf("Remaining: %d %s\n", len(candidates), candidates)
+        } else {
+            fmt.Printf("Remaining: %d\n", len(candidates))
+        }
+
         guess := choose(candidates, hard)
 
         var pattern int
@@ -263,12 +272,17 @@ func play(hard bool, mode Mode, hidden string) {
     }
 }
 
-func expected(hard bool, candidates []Word, depth int) float64 {
+func expected(hard bool, candidates []Word, depth int, guesses []string) float64 {
     if len(candidates) == 1 {
         return float64(depth) * candidates[0].freq / total
     }
 
-    guess := choose(candidates, hard)
+    var guess string
+    if depth <= len(guesses) {
+        guess = guesses[depth-1]
+    } else {
+        guess = choose(candidates, hard)
+    }
     scores := map[int][]Word{}
     for _, h := range candidates {
         s := score(guess, h.word)
@@ -277,7 +291,7 @@ func expected(hard bool, candidates []Word, depth int) float64 {
     i := 0
     e := 0.0
     for _, cs := range scores {
-        e += expected(hard, cs, depth+1)
+        e += expected(hard, cs, depth+1, guesses)
         if depth == 1 {
             i += 1
             fmt.Printf("\r%d/%d",  i, len(scores))
@@ -364,7 +378,7 @@ func main() {
         parts := strings.Fields(line)
         freq, err := strconv.Atoi(parts[1])
         if err == nil {
-            f := float64(freq)
+            f := math.Sqrt(float64(freq))
             words[i] = Word{parts[0], f, i}
             total += f
             i++
@@ -391,7 +405,7 @@ func main() {
     case "play":
         play(*hardMode, Play, "xxxxx")
     case "exp":
-        fmt.Printf("\n%f\n", expected(*hardMode, words, 1))
+        fmt.Printf("\n%f\n", expected(*hardMode, words, 1, flag.Args()[1:]))
     case "fail":
         fmt.Printf("\n%f\n", failure(*hardMode, words, 1))
     }    
