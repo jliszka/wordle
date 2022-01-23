@@ -11,15 +11,20 @@ class Mode(Enum):
 	adversary = 2
 	interactive = 3
 
-total = 0
-words = []
-with open('words') as f:
+def readwords(fn):
+	words = []
+	total = 0
+	f = open(fn)
 	lines = f.readlines()
 	for line in lines:
 		parts = line.rstrip().split(' ')
-		freq = int(parts[1])
+		freq = int(parts[1]) if len(parts) > 1 else 1
 		total += freq
 		words.append((parts[0], freq))
+	words.sort(key = lambda x: x[1], reverse = True)
+	return (words, total)
+
+(words, total) = readwords('words')
 
 def score(guess, hidden):
 	ret = 0
