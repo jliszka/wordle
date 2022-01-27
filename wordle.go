@@ -237,7 +237,7 @@ func readscore() int {
     }
 }
 
-func play(hard bool, mode Mode, hidden string) {
+func play(hard bool, mode Mode, hidden string, guesses []string) {
     candidates := words
     for i := 0; i < 6; i++ {
         if len(candidates) < 10 {
@@ -246,7 +246,12 @@ func play(hard bool, mode Mode, hidden string) {
             fmt.Printf("Remaining: %d\n", len(candidates))
         }
 
-        guess := choose(candidates, hard)
+        var guess string
+        if i < len(guesses) {
+            guess = guesses[i]
+        } else {
+            guess = choose(candidates, hard)
+        }
 
         var pattern int
         switch mode {
@@ -401,9 +406,9 @@ func main() {
 
     switch flag.Arg(0) {
     case "solve":
-        play(*hardMode, Solve, flag.Arg(1))
+        play(*hardMode, Solve, flag.Arg(1), flag.Args()[2:])
     case "play":
-        play(*hardMode, Play, "xxxxx")
+        play(*hardMode, Play, "xxxxx", flag.Args()[1:])
     case "exp":
         fmt.Printf("\n%f\n", expected(*hardMode, words, 1, flag.Args()[1:]))
     case "fail":
