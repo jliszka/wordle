@@ -237,10 +237,10 @@ func readscore() int {
     }
 }
 
-func play(hard bool, mode Mode, hidden string, guesses []string) {
+func play(hard bool, debug bool, mode Mode, hidden string, guesses []string) {
     candidates := words
     for i := 0; i < 6; i++ {
-        if len(candidates) < 10 {
+        if len(candidates) < 20 && debug {
             fmt.Printf("Remaining: %d %s\n", len(candidates), candidates)
         } else {
             fmt.Printf("Remaining: %d\n", len(candidates))
@@ -356,6 +356,7 @@ func test() {
 var cpuProfile = flag.String("p", "", "write cpu profile to file")
 var hardMode = flag.Bool("h", false, "hard mode")
 var metricStr = flag.String("m", "entropy", "evaluation metric")
+var debugMode = flag.Bool("d", false, "debug mode")
 
 func main() {
     flag.Parse()
@@ -383,6 +384,7 @@ func main() {
         parts := strings.Fields(line)
         freq, err := strconv.Atoi(parts[1])
         if err == nil {
+            // A hack. Flatten the frequencies a little.
             f := math.Sqrt(float64(freq))
             words[i] = Word{parts[0], f, i}
             total += f
@@ -406,9 +408,9 @@ func main() {
 
     switch flag.Arg(0) {
     case "solve":
-        play(*hardMode, Solve, flag.Arg(1), flag.Args()[2:])
+        play(*hardMode, *debugMode, Solve, flag.Arg(1), flag.Args()[2:])
     case "play":
-        play(*hardMode, Play, "xxxxx", flag.Args()[1:])
+        play(*hardMode, *debugMode, Play, "xxxxx", flag.Args()[1:])
     case "exp":
         fmt.Printf("\n%f\n", expected(*hardMode, words, 1, flag.Args()[1:]))
     case "fail":
