@@ -25,7 +25,7 @@ type Word struct {
 }
 
 func (w Word) String() string {
-        return w.word
+        return fmt.Sprintf("%s(%0.0f)", w.word, w.freq);
 }
 
 var words []Word
@@ -110,6 +110,12 @@ func (g Guess) betterThan(g2 Guess) bool {
         return false
     }
     return g.freq > g2.freq
+}
+
+type Guess2 struct {
+    word1 string
+    word2 string
+    metric float64
 }
 
 type Metric func ([243]float64, [243]float64) float64
@@ -277,6 +283,72 @@ func play(hard bool, debug bool, mode Mode, hidden string, guesses []string) {
     }
 }
 
+func top(candidates []Word) Guess2 {
+    guesses := make(chan Guess2)
+    for _, w1 := range candidates {
+        go func(w1 Word) {
+            buckets := [243][]Word{}
+            for _, h := range candidates {
+                s := score2(w1.word, h.word)
+                buckets[s] = append(buckets[s], h)
+            }
+            for _, w2 := range candidates {
+                if w1.n <= w2.n {
+                    continue
+                }
+                score := 0.0
+                for _, b := range buckets {
+                    var freqs [243]float64
+                    var sizes [243]float64
+                    for _, h := range b {
+                        s := score2(w2.word, h.word)
+                        freqs[s] += h.freq
+                        sizes[s] += 1
+                    }
+                    score += metric(freqs, sizes)
+                }
+                guesses <- Guess2{w1.word, w2.word, score}
+            }
+        }(w1)
+    }
+    best_guess := Guess2{"xxxxx", "yyyyy", -1000000.0}
+    count := len(candidates) * (len(candidates) - 1) / 2
+    for i := 0; i < count; i++ {
+        if i % 1024 == 0 {
+            fmt.Printf("\r%d/%d", i, count)
+        }
+        guess := <-guesses
+        if guess.metric > best_guess.metric {
+            best_guess = guess
+            fmt.Printf("\n%s/%s\n", guess.word1, guess.word2)
+        }
+    }
+    return best_guess
+}
+
+func eval(candidates []Word, guesses []string) float64 {
+    if len(guesses) == 1 {
+        var freqs [243]float64
+        var sizes [243]float64
+        for _, h := range candidates {
+            s := score2(guesses[0], h.word)
+            freqs[s] += h.freq
+            sizes[s] += 1
+        }
+        return metric(freqs, sizes)
+    }
+    buckets := [243][]Word{}
+    for _, h := range candidates {
+        s := score2(guesses[0], h.word)
+        buckets[s] = append(buckets[s], h)
+    }
+    score := 0.0
+    for _, b := range buckets {
+        score += eval(b, guesses[1:])
+    }
+    return score
+}
+
 func expected(hard bool, candidates []Word, depth int, guesses []string) float64 {
     if len(candidates) == 1 {
         return float64(depth) * candidates[0].freq / total
@@ -415,5 +487,9 @@ func main() {
         fmt.Printf("\n%f\n", expected(*hardMode, words, 1, flag.Args()[1:]))
     case "fail":
         fmt.Printf("\n%f\n", failure(*hardMode, words, 1))
+    case "top":
+        fmt.Printf("\n%s\n", top(words))
+    case "eval":
+        fmt.Println(eval(words, flag.Args()[1:]))
     }    
 }
