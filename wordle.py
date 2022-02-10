@@ -141,6 +141,9 @@ def top(candidates):
 def play(mode, hard, hidden, guesses):
 	candidates = words
 	wordlength = len(words[0][0])
+	end = 0
+	for i in range(wordlength):
+		end = (end << 4) + 2
 	for i in range(6):
 		if len(candidates) >= 10:
 			print("Remaining:", len(candidates))
@@ -158,7 +161,7 @@ def play(mode, hard, hidden, guesses):
 		elif mode == Mode.interactive:
 			print("Guess {}:".format(i+1), guess)
 			pattern = readscore(wordlength)
-		if pattern == 0x22222:
+		if pattern == end:
 			break
 		candidates = [ (w, f) for w, f in candidates if score(guess, w) == pattern ]
 
@@ -206,7 +209,9 @@ def expected(guesses, candidates, depth=1):
 			print("{}/{}".format(i, len(scores)))
 	return e
 
-if sys.argv[1] == "play":
+if len(sys.argv) == 1:
+	play(Mode.interactive, False, "", sys.argv[1:])
+elif sys.argv[1] == "play":
 	play(Mode.play, False, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "hard":
 	play(Mode.play, True, sys.argv[2], sys.argv[3:])
