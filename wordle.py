@@ -11,33 +11,39 @@ class Mode(Enum):
 	adversary = 2
 	interactive = 3
 
-total = 0
-words = []
-with open('words') as f:
+def readwords(fn):
+	words = []
+	total = 0
+	f = open(fn)
 	lines = f.readlines()
 	for line in lines:
 		parts = line.rstrip().split(' ')
-		freq = int(parts[1])
+		freq = int(parts[1]) if len(parts) > 1 else 1
 		total += freq
 		words.append((parts[0], freq))
+	words.sort(key = lambda x: x[1], reverse = True)
+	return (words, total)
+
+(words, total) = readwords('words')
 
 def score(guess, hidden):
+	wordlength = len(guess)
 	ret = 0
 	unchecked = []
 	# Calculate all the greens first. If the hidden word is LIMBO and the guess is PHONO,
 	# you don't get a yellow box for the first O.
-	for i in range(5):
+	for i in range(wordlength):
 		if guess[i] == hidden[i]:
-			ret |= 2 << ((4 - i) * 4)
+			ret |= 2 << ((wordlength - 1 - i) * 4)
 		else:
 			unchecked.append(i)
-	index = [0] * 26
+	index = [0] * 127
 	for i in unchecked:
-		index[ord(hidden[i]) - 97] += 1
+		index[ord(hidden[i])] += 1
 	for i in unchecked:
-		g = ord(guess[i]) - 97
+		g = ord(guess[i])
 		if index[g] > 0:
-			ret |= 1 << ((4 - i) * 4)
+			ret |= 1 << ((wordlength - 1 - i) * 4)
 			index[g] -= 1
 	return ret
 
@@ -55,24 +61,27 @@ def test():
 	eq("hello", "could", 0x01020)
 	eq("could", "hello", 0x00021)
 	eq("colds", "llama", 0x10000)
+	eq("abroad", "action", 0x200010)
+	eq("absolute", "disposal", 0x00201011)
+	eq("2+4*5=22", "9*3-1=26", 0x01000220)
 
 def profile():
 	for w in words:
 		for h in words[:1000]:
 			score(w, h)
 
-def readscore():
+def readscore(wordlength):
 	while (True):
 		print("Enter score using -gy: ", end='')
 		s = input()
-		if len(s) != 5:
-			print("input not 5 characters")
+		if len(s) != wordlength:
+			print("input not {} characters".format(wordlength))
 			continue
-		if len(re.findall("[-gy]", s)) != 5:
+		if len(re.findall("[-gy]", s)) != wordlength:
 			print("invalid input character")
 			continue
 		ret = 0
-		for i in range(5):
+		for i in range(wordlength):
 			ret *= 16
 			if s[i] == 'g':
 				ret += 2
@@ -131,6 +140,10 @@ def top(candidates):
 
 def play(mode, hard, hidden, guesses):
 	candidates = words
+	wordlength = len(words[0][0])
+	end = 0
+	for i in range(wordlength):
+		end = (end << 4) + 2
 	for i in range(6):
 		if len(candidates) >= 10:
 			print("Remaining:", len(candidates))
@@ -147,8 +160,8 @@ def play(mode, hard, hidden, guesses):
 			writescore(pattern, guess)
 		elif mode == Mode.interactive:
 			print("Guess {}:".format(i+1), guess)
-			pattern = readscore()
-		if pattern == 0x22222:
+			pattern = readscore(wordlength)
+		if pattern == end:
 			break
 		candidates = [ (w, f) for w, f in candidates if score(guess, w) == pattern ]
 
@@ -196,7 +209,9 @@ def expected(guesses, candidates, depth=1):
 			print("{}/{}".format(i, len(scores)))
 	return e
 
-if sys.argv[1] == "play":
+if len(sys.argv) == 1:
+	play(Mode.interactive, False, "", sys.argv[1:])
+elif sys.argv[1] == "play":
 	play(Mode.play, False, sys.argv[2], sys.argv[3:])
 elif sys.argv[1] == "hard":
 	play(Mode.play, True, sys.argv[2], sys.argv[3:])
