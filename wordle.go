@@ -201,6 +201,57 @@ func choose(candidates []Word, hard bool) string {
     return best_guess.word
 }
 
+func filter(candidates []Word, scoreStrs []string) {
+    var scores [243] int
+    var sc [243] int
+    for _, s := range scoreStrs {
+        if s == "/" {
+            for i, c := range sc {
+                if c > scores[i] {
+                    scores[i] = c
+                }
+                sc[i] = 0
+            }
+        } else {
+            sc[parseScore(s)] += 1
+        }
+    }
+
+    none := Word{"xxxxx", 0.0, -1}
+    words := make(chan Word)
+    for _, h := range candidates {
+        go func(h Word) {
+            var count [243]int
+            f := 0.0
+            for _, g := range candidates {
+                s := score2(g.word, h.word)
+                if scores[s] > 0 {
+                    count[s] += 1
+                    f += g.freq * float64(scores[s])
+                }
+            }
+            all := true
+            for i, c := range scores {
+                if count[i] < c {
+                    all = false
+                    break
+                }
+            }
+            if all {
+                words <- Word{h.word, f, 0}
+            } else {
+                words <- none
+            }
+        }(h)
+    }
+    for range candidates {
+        w := <-words
+        if w.n >= 0 {
+            fmt.Printf("%0.0f %s\n", w.freq, w.word)
+        }
+    }
+}
+
 func writescore(score int, guess string) {
     fmt.Printf("\033[37m\033[1m")
     for i := 0; i < 5; i++ {
@@ -241,6 +292,19 @@ func readscore() int {
         }
         return ret
     }
+}
+
+func parseScore(score string) int {
+    ret := 0
+    for _, c := range score {
+        ret *= 3
+        if c == 'g' {
+            ret += 2
+        } else if c == 'y' {
+            ret += 1
+        }
+    }
+    return ret
 }
 
 func play(hard bool, debug bool, mode Mode, hidden string, guesses []string) {
@@ -491,5 +555,7 @@ func main() {
         fmt.Printf("\n%s\n", top(words))
     case "eval":
         fmt.Println(eval(words, flag.Args()[1:]))
+    case "filter":
+        filter(words, flag.Args()[1:])
     }    
 }
