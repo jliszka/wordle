@@ -20,7 +20,8 @@ const (
 
 type Word struct {
     word string
-    freq float64
+    freq int
+    pr float64
     n int
 }
 
@@ -181,13 +182,13 @@ func choose(candidates []Word, hard bool) string {
             is_candidate := false
             for _, h := range candidates {
                 s := score2(w.word, h.word)
-                freqs[s] += h.freq
+                freqs[s] += h.pr
                 sizes[s] += 1
                 if !hard && w.n == h.n {
                     is_candidate = true
                 }
             }
-            guesses <- Guess{w.word, metric(freqs, sizes), is_candidate, w.freq}
+            guesses <- Guess{w.word, metric(freqs, sizes), is_candidate, w.pr}
         }(i, w)
     }
 
@@ -203,6 +204,7 @@ func choose(candidates []Word, hard bool) string {
 
 func filter(candidates []Word, scoreStrs []string) {
     var scores [243] int
+    var guess_count [243] int
     var sc [243] int
     for _, s := range scoreStrs {
         if s == "/" {
@@ -213,11 +215,13 @@ func filter(candidates []Word, scoreStrs []string) {
                 sc[i] = 0
             }
         } else {
-            sc[parseScore(s)] += 1
+            k := parseScore(s)
+            sc[k] += 1
+            guess_count[k] += 1
         }
     }
 
-    none := Word{"xxxxx", 0.0, -1}
+    none := Word{"xxxxx", 0, 0.0, -1}
     words := make(chan Word)
     for _, h := range candidates {
         go func(h Word) {
@@ -227,7 +231,7 @@ func filter(candidates []Word, scoreStrs []string) {
                 s := score2(g.word, h.word)
                 if scores[s] > 0 {
                     count[s] += 1
-                    f += g.freq * float64(scores[s])
+                    f += g.pr * float64(guess_count[s])
                 }
             }
             all := true
@@ -238,7 +242,7 @@ func filter(candidates []Word, scoreStrs []string) {
                 }
             }
             if all {
-                words <- Word{h.word, f, 0}
+                words <- Word{h.word, 0, f, 0}
             } else {
                 words <- none
             }
@@ -366,7 +370,7 @@ func top(candidates []Word) Guess2 {
                     var sizes [243]float64
                     for _, h := range b {
                         s := score2(w2.word, h.word)
-                        freqs[s] += h.freq
+                        freqs[s] += h.pr
                         sizes[s] += 1
                     }
                     score += metric(freqs, sizes)
@@ -396,7 +400,7 @@ func eval(candidates []Word, guesses []string) float64 {
         var sizes [243]float64
         for _, h := range candidates {
             s := score2(guesses[0], h.word)
-            freqs[s] += h.freq
+            freqs[s] += h.pr
             sizes[s] += 1
         }
         return metric(freqs, sizes)
@@ -415,7 +419,7 @@ func eval(candidates []Word, guesses []string) float64 {
 
 func expected(hard bool, candidates []Word, depth int, guesses []string) float64 {
     if len(candidates) == 1 {
-        return float64(depth) * candidates[0].freq / total
+        return float64(depth) * candidates[0].pr / total
     }
 
     var guess string
@@ -448,7 +452,7 @@ func failure(hard bool, candidates []Word, depth int) float64 {
     if depth == 3 {
         ret := 0.0
         for _, c := range candidates {
-            ret += c.freq / total
+            ret += c.pr / total
         }
         return ret
     }
@@ -469,6 +473,10 @@ func failure(hard bool, candidates []Word, depth int) float64 {
         }
     }
     return e
+}
+
+func sigmoid(f int, c float64, k float64) float64 {
+    return 1.0 / (1 + math.Exp(-(float64(f)-c)/k))
 }
 
 func eq(hidden string, guess string, expected int) {
@@ -512,7 +520,7 @@ func main() {
     }
     defer file.Close()
 
-    words = make([]Word, 12972)
+    words = make([]Word, 12947)
     i := 0
     scanner := bufio.NewScanner(file)
     for scanner.Scan() {
@@ -520,10 +528,9 @@ func main() {
         parts := strings.Fields(line)
         freq, err := strconv.Atoi(parts[1])
         if err == nil {
-            // A hack. Flatten the frequencies a little.
-            f := math.Sqrt(float64(freq))
-            words[i] = Word{parts[0], f, i}
-            total += f
+            pr := sigmoid(freq, 80, 15)
+            words[i] = Word{parts[0], freq, pr, i}
+            total += pr
             i++
         }
     }
