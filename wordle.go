@@ -26,7 +26,7 @@ type Word struct {
 }
 
 func (w Word) String() string {
-        return fmt.Sprintf("%s(%0.0f)", w.word, w.freq);
+        return fmt.Sprintf("%s(%d)", w.word, w.freq);
 }
 
 var words []Word
