@@ -145,6 +145,17 @@ func expectedBucket(freq [243]float64, size [243]float64) float64 {
     return ret
 }
 
+func expectedBucketPr(freq [243]float64, size [243]float64) float64 {
+    ret := 0.0
+    for _, fq := range freq {
+        if fq > 0 {
+            pr := fq / total
+            ret -= pr * pr
+        }
+    }
+    return ret
+}
+
 func maxBucket(freq [243]float64, size [243]float64) float64 {
     ret := 0.0
     for _, sz := range size {
@@ -541,6 +552,8 @@ func main() {
     switch *metricStr {
     case "exp":
         metric = expectedBucket
+    case "expr":
+        metric = expectedBucketPr
     case "max":
         metric = maxBucket
     case "num":
